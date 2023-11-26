@@ -7,4 +7,6 @@ include_directories(.)
 
 add_executable(inge2_tg_2023_2024_13_8
         main.c
-        precedent.h)
+        precedent.h
+        precedence.h
+        precedence.c)
