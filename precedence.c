@@ -146,6 +146,9 @@ void bellman_ford_plus_long_chemin(Graphe* graphe, int sommet_depart) {
     for (int i = 0; i < graphe->ordre; i++) {
         graphe->pSommet[i]->distance = 0;
         graphe->pSommet[i]->pred = 0;
+
+
+
     }
 
     // La distance du sommet de départ est 0
