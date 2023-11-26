@@ -1,7 +1,7 @@
 #ifndef PRECEDENCE_H
 #define PRECEDENCE_H
 
-typedef struct Arc* pArc;
+
 
 /* Structure d'un sommet*/
 struct Sommet
@@ -13,9 +13,6 @@ struct Sommet
     int pred;
 };
 typedef struct Sommet* pSommet;
-
-
-
 
 // Structure pour représenter un graphe
 typedef struct Graphe {
@@ -32,14 +29,13 @@ typedef struct Graphe {
 
 struct Arc
 {
-    int sommet; // numéro de sommet d'un arc adjacent au sommet initial
+    int s; // numéro de sommet d'un arc adjacent au sommet initial
 
     struct Arc* arc_suivant;
     int poids;
 
-
-
 };
+typedef struct Arc* pArc;
 
 typedef struct  {
     int longueur;
