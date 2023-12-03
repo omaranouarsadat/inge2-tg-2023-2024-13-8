@@ -1,0 +1,467 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+typedef struct precedence {
+    int sommet1;
+    int sommet2;
+    int taille;
+} t_precedence;
+
+typedef struct operation {
+    int sommet;
+    float poids;
+    int taille_tableau;
+    int temps_max;
+} t_operation;
+
+typedef struct element{
+    int sommet;
+    float poids;
+}t_element;
+
+typedef struct file_attente{
+    t_element *element;
+    int taille_file;
+}t_file_attente;
+
+typedef struct arete {
+    int sommet;
+    struct arete* suivant;
+} t_arete;
+
+typedef struct liste_adjacence{
+    t_arete* tete;
+} t_listeAdjacence;
+
+typedef struct graphe{
+    t_listeAdjacence* successeurs;
+    t_listeAdjacence* predecesseurs;
+    int nombre_sommets;
+    float *poids;
+    int *marque;
+} t_graphe;
+
+typedef struct station{
+    int numeroMachine;
+    int *operations;
+    int nombreOperations;
+    float temps_station;
+} t_station;
+
+float lire_fichier2(t_precedence **tab_precedence, t_operation **tab_operation, int *nombre_sommet);
+t_file_attente *init_file_attente(t_graphe *graphe);
+void ajouter_file_attente(t_arete *element, t_file_attente *file_attente, t_graphe *graphe);
+void trier_elements(t_element *elements, int taille);
+int supprimer_element(t_file_attente *file_attente, int element_a_supp);
+t_graphe initialiserGraphe(int nombre_sommets);
+void ajouterArete(t_graphe* graphe, int s1, int s2);
+void afficherGraphe(t_graphe* graphe);
+t_station *initialiser_station(t_element *elements);
+int ajouter_station(t_station *station, t_element *element, t_graphe *graphe);
+void affichage_precedence(int nb_station, t_station *station);
+
+int main() {
+    int nombre_sommet = 0, fin = 0, nb_sommet_marque = 0, test_marque = 0, indice_sommet_trouve = 0, nb_station = 0, doublon = 0;
+    t_precedence* tab_precedence = NULL;
+    t_operation* tab_operation = NULL;
+    t_file_attente *file_attente = NULL;
+    t_station *station = NULL;
+    t_arete *actuel = NULL;
+    t_arete *actuel_prec = NULL;
+    int sommet_station;
+    float temps_max;
+
+    temps_max = lire_fichier2(&tab_precedence, &tab_operation, &nombre_sommet);
+    // CrÃ©ation du graphe
+    t_graphe graphe = initialiserGraphe(nombre_sommet+1); // +1 pour tenir compte du sommet 0
+
+    for(int i=0; i<graphe.nombre_sommets; i++){
+        for(int j=0; j<tab_operation->taille_tableau; j++){
+            if(i+1 == tab_operation[j].sommet){
+                graphe.poids[i+1] = tab_operation[j].poids;
+            }
+        }
+    }
+    free(tab_operation);
+
+    for(int i=0; i<graphe.nombre_sommets; i++){
+        graphe.marque[i] = 0;
+    }
+
+    for (int i=0; i<tab_precedence->taille; i++){
+        ajouterArete(&graphe, tab_precedence[i].sommet1, tab_precedence[i].sommet2);
+    }
+    free(tab_precedence);
+
+    file_attente = init_file_attente(&graphe);
+    trier_elements(file_attente->element, file_attente->taille_file);
+
+    station = initialiser_station(file_attente->element);
+    sommet_station = supprimer_element(file_attente, 0);
+    graphe.marque[sommet_station] = 1;
+    nb_sommet_marque++;
+
+    while(fin != 1){
+        actuel = graphe.successeurs[sommet_station].tete;
+        while(actuel != NULL){
+            if(graphe.marque[actuel->sommet] == 0){
+                ajouter_file_attente(actuel, file_attente, &graphe);
+            }
+            actuel = actuel->suivant;
+        }
+        trier_elements(file_attente->element, file_attente->taille_file);
+        actuel_prec = graphe.predecesseurs[file_attente->element[0].sommet].tete;
+        while(actuel_prec != NULL){
+            if(graphe.marque[actuel_prec->sommet] == 0){
+                test_marque = 1;
+            }
+            actuel_prec = actuel_prec->suivant;
+        }
+        if((file_attente->element[0].poids + station[nb_station].temps_station < temps_max) && (test_marque == 0)){
+            doublon = ajouter_station(&station[nb_station], &file_attente->element[0], &graphe);
+            sommet_station = supprimer_element(file_attente, 0);
+            graphe.marque[sommet_station] = 1;
+            if(doublon == 0){
+                nb_sommet_marque++;
+            }
+
+        }
+        else{
+            indice_sommet_trouve = 0;
+            for(int i=0; i<file_attente->taille_file; i++){
+                test_marque = 0;
+                indice_sommet_trouve++;
+                actuel_prec = graphe.predecesseurs[file_attente->element[i].sommet].tete;
+                while(actuel_prec != NULL){
+                    if(graphe.marque[actuel_prec->sommet] == 0){
+                        test_marque = 1;
+                    }
+                    actuel_prec = actuel_prec->suivant;
+                }
+                if((file_attente->element[i].poids + station[nb_station].temps_station < temps_max) && (test_marque == 0)){
+                    test_marque = 2;
+                    break;
+                }
+            }
+            if(test_marque == 2){
+                ////////////////////// plante ici ///////////////////////////////////////////////////////////////////
+                // printf("%d %d ", indice_sommet_trouve-1, file_attente->taille_file);
+                doublon = ajouter_station(&station[nb_station], &file_attente->element[indice_sommet_trouve-1], &graphe);
+                sommet_station = supprimer_element(file_attente, indice_sommet_trouve-1);
+                // printf("%d\n", sommet_station);
+                graphe.marque[sommet_station] = 1;
+                if(doublon == 0){
+                    nb_sommet_marque++;
+                }
+                indice_sommet_trouve = 0;
+            }
+            else{
+                if(file_attente != NULL){
+                    nb_station++;
+                    station = realloc(station, (nb_station+1)*sizeof(t_station));
+                    test_marque = 0;
+                    actuel_prec = graphe.predecesseurs[file_attente->element[0].sommet].tete;
+                    while(actuel_prec != NULL){
+                        if(graphe.marque[actuel_prec->sommet] == 0){
+                            test_marque = 1;
+                        }
+                        actuel_prec = actuel_prec->suivant;
+                    }
+                    if(test_marque == 0){
+                        station[nb_station].operations = malloc(sizeof(int));
+                        station[nb_station].operations[0] = file_attente->element[0].sommet;
+                        station[nb_station].numeroMachine = nb_station+1;
+                        station[nb_station].temps_station = file_attente->element[0].poids;
+                        station[nb_station].nombreOperations = 1;
+                        sommet_station = supprimer_element(file_attente, 0);
+                        graphe.marque[sommet_station] = 1;
+                        nb_sommet_marque++;
+                    }
+                    else{
+                        indice_sommet_trouve = 0;
+                        for(int i=0; i<file_attente->taille_file; i++){
+                            test_marque = 0;
+                            indice_sommet_trouve++;
+                            actuel_prec = graphe.predecesseurs[file_attente->element[i].sommet].tete;
+                            while(actuel_prec != NULL){
+                                if(graphe.marque[actuel_prec->sommet] == 0){
+                                    test_marque = 1;
+                                }
+                                actuel_prec = actuel_prec->suivant;
+                            }
+                            if(test_marque == 0){
+                                test_marque = 2;
+                                break;
+                            }
+                        }
+
+                        if(test_marque == 2){
+                            station[nb_station].operations = malloc(sizeof(int));
+                            station[nb_station].operations[0] = file_attente->element[0].sommet;
+                            station[nb_station].numeroMachine = nb_station+1;
+                            station[nb_station].temps_station = file_attente->element[0].poids;
+                            station[nb_station].nombreOperations = 1;
+                            sommet_station = supprimer_element(file_attente, indice_sommet_trouve-1);
+                            graphe.marque[sommet_station] = 1;
+                            if(doublon == 0){
+                                nb_sommet_marque++;
+                            }
+                            indice_sommet_trouve = 0;
+                        }
+                        else{
+                            perror("erreur dans le code");
+                            exit(-1);
+                        }
+                    }
+                }
+            }
+        }
+
+        test_marque = 0;
+
+        if(nb_sommet_marque == nombre_sommet){
+            fin = 1;
+        }
+    }
+
+
+    affichage_precedence(nb_station, station);
+    //afficherGraphe(&graphe);
+
+    for (int i = 0; i < nb_station + 1; i++) {
+        free(station[i].operations);
+    }
+    free(station);
+    for (int i = 0; i < graphe.nombre_sommets; i++) {
+        t_arete* successeur_actuel = graphe.successeurs[i].tete;
+        while (successeur_actuel != NULL) {
+            t_arete* temp = successeur_actuel;
+            successeur_actuel = successeur_actuel->suivant;
+            free(temp);
+        }
+
+        t_arete* predecesseur_actuel = graphe.predecesseurs[i].tete;
+        while (predecesseur_actuel != NULL) {
+            t_arete* temp = predecesseur_actuel;
+            predecesseur_actuel = predecesseur_actuel->suivant;
+            free(temp);
+        }
+    }
+    free(graphe.successeurs);
+    free(graphe.predecesseurs);
+    free(graphe.poids);
+    free(graphe.marque);
+    free(file_attente->element);
+    free(file_attente);
+
+    return 0;
+}
+
+float lire_fichier2(t_precedence **tab_precedence, t_operation **tab_operation, int *nombre_sommet){
+    FILE *fichier_precedence = fopen("precedences.txt", "r");
+    FILE *fichier_operation = fopen("operations.txt", "r");
+    FILE *fichier_temps = fopen("temps_cycle.txt", "r");
+    int sommet1, sommet2, i = 0;
+    float temps_op;
+    float temps_max;
+
+    if(fichier_precedence == NULL || fichier_operation == NULL || fichier_temps == NULL){
+        perror("Impossible d'ouvrir un fichier");
+        exit(-1);
+    }
+
+    while(fscanf(fichier_operation, "%d %f", &sommet1, &temps_op) == 2){
+        if (sommet1 > *nombre_sommet) {
+            *nombre_sommet = sommet1;
+        }
+    }
+    fseek(fichier_operation, 0, SEEK_SET);
+
+    while(fscanf(fichier_precedence, "%d %d", &sommet1, &sommet2) == 2){
+        *tab_precedence = realloc(*tab_precedence, (i + 1) * sizeof(t_precedence));
+        (*tab_precedence)[i].sommet1 = sommet1;
+        (*tab_precedence)[i].sommet2 = sommet2;
+        i++;
+        (*tab_precedence)->taille = i;
+    }
+    i = 0;
+
+    while(fscanf(fichier_operation, "%d %f", &sommet1, &temps_op) == 2){
+        *tab_operation = realloc(*tab_operation, (i + 1) * sizeof(t_operation));
+        (*tab_operation)[i].sommet = sommet1;
+        (*tab_operation)[i].poids = temps_op;
+        i++;
+        (*tab_operation)->taille_tableau = i;
+    }
+
+    fscanf(fichier_temps, "%f", &temps_max);
+
+    fclose(fichier_temps);
+    fclose(fichier_operation);
+    fclose(fichier_precedence);
+
+    return temps_max;
+}
+
+t_station *initialiser_station(t_element *elements){
+    t_station *station = malloc(sizeof(t_station));
+
+    station->operations = malloc(sizeof(int));
+    station->operations[0] = elements->sommet;
+    station->numeroMachine = 1;
+    station->temps_station = elements->poids;
+    station->nombreOperations = 1;
+
+    return station;
+}
+
+int ajouter_station(t_station *station, t_element *element, t_graphe *graphe){
+    int doublon = 0;
+    for(int i=0; i<station->nombreOperations; i++){
+        if(graphe->marque[element->sommet] == 1){
+            doublon = 1;
+        }
+    }
+    if(doublon == 0){
+        station->operations = realloc(station->operations, (station->nombreOperations+1) * sizeof(int));
+        station->operations[station->nombreOperations] = element->sommet;
+        station->temps_station += element->poids;
+        station->nombreOperations++;
+    }
+
+    return doublon;
+}
+
+t_file_attente *init_file_attente(t_graphe *graphe) {
+    t_file_attente *file_attente = malloc(sizeof(t_file_attente));
+    file_attente->taille_file = 0;
+
+    for (int i = 1; i < graphe->nombre_sommets; i++) {
+        if (graphe->predecesseurs[i].tete == NULL) {
+            if(i==1){
+                file_attente->element = malloc(sizeof(t_element));
+            }
+            else{
+                file_attente->element = realloc(file_attente->element, (file_attente->taille_file + 1) * sizeof(t_element));
+            }
+
+            file_attente->element[file_attente->taille_file].sommet = i;
+            file_attente->element[file_attente->taille_file].poids = graphe->poids[i];
+            file_attente->taille_file++;
+        }
+    }
+
+    return file_attente;
+}
+
+void ajouter_file_attente(t_arete *element, t_file_attente *file_attente, t_graphe *graphe){
+    file_attente->element = realloc(file_attente->element, (file_attente->taille_file + 1) * sizeof(t_element));
+    file_attente->element[file_attente->taille_file].sommet = element->sommet;
+    file_attente->element[file_attente->taille_file].poids = graphe->poids[element->sommet];
+    file_attente->taille_file++;
+}
+
+void trier_elements(t_element *elements, int taille){
+    for (int i = 0; i < taille - 1; i++) {
+        for (int j = 0; j < taille - i - 1; j++) {
+            if (elements[j].poids < elements[j + 1].poids) {
+                t_element temp = elements[j];
+                elements[j] = elements[j + 1];
+                elements[j + 1] = temp;
+            }
+        }
+    }
+}
+
+int supprimer_element(t_file_attente *file_attente, int element_a_supp){
+    int temp;
+
+    temp = file_attente->element[element_a_supp].sommet;
+    for(int i=element_a_supp; i<file_attente->taille_file-1; i++){
+        file_attente->element[i] = file_attente->element[i + 1];
+    }
+    file_attente->element = realloc(file_attente->element, (file_attente->taille_file-1) * sizeof(t_element));
+    file_attente->taille_file--;
+
+    return temp;
+}
+
+t_graphe initialiserGraphe(int nombre_sommets){
+    t_graphe graphe;
+
+    graphe.nombre_sommets = nombre_sommets;
+    graphe.successeurs = (t_listeAdjacence*)malloc(nombre_sommets * sizeof(t_listeAdjacence));
+    graphe.predecesseurs = (t_listeAdjacence*)malloc(nombre_sommets * sizeof(t_listeAdjacence));
+    graphe.poids = (float*)malloc(nombre_sommets * sizeof(float));
+    graphe.marque = (int*)malloc(nombre_sommets * sizeof(int));
+
+    for(int i=0; i<nombre_sommets; i++){
+        graphe.successeurs[i].tete = NULL;
+        graphe.predecesseurs[i].tete = NULL;
+        graphe.poids[i] = 0;
+        graphe.marque[i] = 0;
+    }
+
+    return graphe;
+}
+
+void ajouterArete(t_graphe* graphe, int s1, int s2){
+    t_arete* nouveau_successeur = (t_arete*)malloc(sizeof(t_arete));
+    t_arete* nouveau_predecesseur = (t_arete*)malloc(sizeof(t_arete));
+
+    nouveau_successeur->sommet = s2;
+    nouveau_successeur->suivant = graphe->successeurs[s1].tete;
+    graphe->successeurs[s1].tete = nouveau_successeur;
+
+    nouveau_predecesseur->sommet = s1;
+    nouveau_predecesseur->suivant = graphe->predecesseurs[s2].tete;
+    graphe->predecesseurs[s2].tete = nouveau_predecesseur;
+}
+
+void afficherGraphe(t_graphe* graphe){
+    t_arete* actuel = NULL;
+    printf("graphe des successeurs : \n");
+    for(int i=0; i<graphe->nombre_sommets; i++) {
+        actuel = graphe->successeurs[i].tete;
+        printf("Sommet %d : ", i);
+        while(actuel != NULL){
+            if(actuel->suivant != NULL){
+                printf("%d -> ", actuel->sommet);
+            }
+            else if(actuel->suivant == NULL){
+                printf("%d", actuel->sommet);
+            }
+            actuel = actuel->suivant;
+        }
+        printf("     poids du sommet %d : %f", i, graphe->poids[i]);
+        printf("\n");
+    }
+
+    printf("\n \n \ngraphe des predecesseurs : \n");
+    for(int i=0; i<graphe->nombre_sommets; i++) {
+        actuel = graphe->predecesseurs[i].tete;
+        printf("Sommet %d : ", i);
+        while(actuel != NULL){
+            if(actuel->suivant != NULL){
+                printf("%d -> ", actuel->sommet);
+            }
+            else if(actuel->suivant == NULL){
+                printf("%d", actuel->sommet);
+            }
+            actuel = actuel->suivant;
+        }
+        printf("\n");
+    }
+}
+
+void affichage_precedence(int nb_station, t_station *station){
+    printf("Contrainte de temps de cycle et de precedence : \n");
+    printf("nombre de stations : %d\n", nb_station+1);
+    for(int i=0; i<nb_station+1; i++){
+        printf("machine %d (poids %f) : operation : ", station[i].numeroMachine, station[i].temps_station);
+        for(int j=0; j<station[i].nombreOperations; j++){
+            printf("%d, ", station[i].operations[j]);
+        }
+        printf("\n");
+    }
+}
