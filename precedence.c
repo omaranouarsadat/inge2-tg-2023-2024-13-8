@@ -22,7 +22,7 @@ void determiner_nombre_sommet_arc(FILE* nomFichier, int* nombre_sommets, int* no
     // Lit les arcs du graphe à partir du fichier
     while (fscanf(nomFichier, "%d %d %d", &s1, &s2, &poids) == 3)
     {
-        // Met à jour  le nombre d'arcs
+        // Met à jour  le nombre d'arc
         (*nombre_arcs)++;
 
         // trouver le sommet le plus élevé
