@@ -58,7 +58,7 @@ void ajouter_arc(Graphe* graphe, int sommet_depart, int sommet_arrivee, int poid
     nouvel_arc->arc_suivant = NULL;
     nouvel_arc->poids = -poids;
 
-    // Trouver le dernier arc dans la liste d'arcs du sommet de départ
+    // Trouver le dernier arc dans la liste d'arc du sommet de départ
     pArc dernier_arc = graphe->pSommet[sommet_depart]->arc;
     if (!dernier_arc) {
         // Si la liste d'arcs est vide, ajouter le nouvel arc directement
