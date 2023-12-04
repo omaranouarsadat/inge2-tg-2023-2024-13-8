@@ -25,7 +25,7 @@ void determiner_nombre_sommet_arc(FILE* nomFichier, int* nombre_sommets, int* no
         // Met à jour  le nombre d'arcs
         (*nombre_arcs)++;
 
-        // trouver le sommet le plus élevé
+        // trouve le sommet le plus élevé
         if (s1 > num_sommet_max) {
             num_sommet_max = s1;
         }
